@@ -34,7 +34,7 @@ Each weekly check-in follows five sequential phases. Do not skip phases — each
 **Purpose:** Gather complete quantitative and qualitative data for the week.
 
 **Protocol:**
-- Work through the standard data checklist (see Section 2)
+- Work through the standard data checklist (see Section 3)
 - Ask follow-up questions on any anomalies before moving to interpretation
 - Do not interpret data during this phase — collect first, interpret second
 - Confirm data completeness before advancing
@@ -52,7 +52,7 @@ Each weekly check-in follows five sequential phases. Do not skip phases — each
 - Identify the dominant theme of the week (productive loading, accumulating fatigue, recovery, disruption, breakthrough)
 - Name the theme explicitly for the athlete
 - Connect objective data to subjective reports — flag discrepancies
-- Apply overtraining and progress signal criteria (see Sections 3 and 5)
+- Apply overtraining and progress signal criteria (see Sections 4 and 6)
 
 **Interpretation statement structure:**
 > "[Theme statement]. Here's why I'm reading it that way: [2–3 specific data points]. The thing I'm watching most closely is [single key signal]."
@@ -64,7 +64,7 @@ Each weekly check-in follows five sequential phases. Do not skip phases — each
 **Purpose:** Make any necessary plan modifications with clear, athlete-centered reasoning.
 
 **Protocol:**
-- Apply decision rules (see Section 7) before making any change
+- Apply decision rules (see Section 8) before making any change
 - State the adjustment specifically (not vaguely)
 - Explain the reasoning in physiological terms the athlete can understand
 - Confirm athlete buy-in before finalizing
@@ -90,7 +90,48 @@ Each weekly check-in follows five sequential phases. Do not skip phases — each
 
 ---
 
-## 2. Weekly Data Collection Checklist
+## 2. Activity Recency Weighting
+
+When analyzing runs across multiple weeks, **recent runs carry more diagnostic weight than older ones.** Fitness and fatigue both change fast — a run from 5 weeks ago reflects a different athlete than today.
+
+### Weighting Framework
+
+| Window | Weight | How to Use |
+|---|---|---|
+| Last 7 days | **High (3×)** | Primary signal. These runs define the athlete's current state. |
+| 8–14 days ago | **Medium (2×)** | Recent context. Useful for trend detection (HR drift, pace progression). |
+| 15–28 days ago | **Low (1×)** | Background baseline. Useful for confirming multi-week patterns. |
+| 29+ days ago | **Reference only** | Historical context. Do not use as a primary indicator of current fitness. |
+
+### Application Rules
+
+**1. Trend direction matters more than absolute values.**
+A 5:30/km easy run last week after several 5:15/km easy runs is more concerning than a single 5:30/km in an otherwise faster month.
+
+**2. Recent anomalies override older averages.**
+If 3 of the last 4 runs show elevated HR, that signal takes priority over a clean 4-week average.
+
+**3. Use recency when diagnosing pace drift.**
+When easy run paces are slowing, check whether the drift started in the last 7 days (likely acute fatigue) or has been gradual over 3–4 weeks (possible fitness plateau or chronic underrecovery).
+
+**4. Recent breakthrough runs count double.**
+A strong workout or long run in the last 7 days is a high-confidence fitness signal. A strong run from 4 weeks ago may have been followed by decline — verify with the trend.
+
+**5. Recency weighting does not apply to injury history.**
+A stress fracture site from 6 months ago is always relevant. Do not discount pain history.
+
+### Prompt for Data Pull
+
+When fetching Garmin data for a check-in, always retrieve:
+- Last 14 days of activities (detailed analysis)
+- Last 28 days of activities (trend context)
+- HRV and resting HR for the last 7 days
+
+Organize your interpretation: *"Here's what this week's runs tell me, and here's how that compares to the prior two weeks."*
+
+---
+
+## 3. Weekly Data Collection Checklist
 
 ### 2A: Quantitative Data
 
@@ -125,7 +166,7 @@ Ask these questions every week. They are not optional.
 
 ---
 
-## 3. Normal Training Fatigue vs. Early Overtraining Syndrome
+## 4. Normal Training Fatigue vs. Early Overtraining Syndrome
 
 ### Decision Framework
 
@@ -191,7 +232,7 @@ Apply when fatigue has persisted 5+ days without a planned recovery week.
 
 ---
 
-## 4. Missed Workout Protocols
+## 5. Missed Workout Protocols
 
 ### Decision Tree
 
@@ -286,7 +327,7 @@ Week 3: Reintroduce one quality session if feeling strong.
 
 ---
 
-## 5. Progress Signals
+## 6. Progress Signals
 
 ### Signals the Plan Is Working
 
@@ -315,7 +356,7 @@ Week 3: Reintroduce one quality session if feeling strong.
 
 ---
 
-## 6. Communication Tone Calibration
+## 7. Communication Tone Calibration
 
 ### State: Tired but Engaged
 
@@ -377,7 +418,7 @@ Week 3: Reintroduce one quality session if feeling strong.
 
 ---
 
-## 7. Decision Rules: Adjust vs. Stay the Course
+## 8. Decision Rules: Adjust vs. Stay the Course
 
 ### The Core Principle
 
@@ -446,7 +487,7 @@ Halt all training when:
 
 ---
 
-## 8. Weekly Check-In Template / Script
+## 9. Weekly Check-In Template / Script
 
 ---
 
@@ -509,7 +550,7 @@ Halt all training when:
 
 ---
 
-## 9. Handling Athletes Who Under-Report Problems
+## 10. Handling Athletes Who Under-Report Problems
 
 ### Why Athletes Under-Report
 
