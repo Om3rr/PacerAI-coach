@@ -1,0 +1,21 @@
+# Secrets & personal config
+.env
+users.json
+.garminconnect*/
+
+# Athlete coaching data (personal health information)
+.coaching_plans/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+dist/
+*.egg-info/
+
+# Claude local settings
+.claude/settings.local.json
+
+# OS
+.DS_Store
