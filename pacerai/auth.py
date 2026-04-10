@@ -6,6 +6,18 @@ from pathlib import Path
 from garminconnect import Garmin
 from pacerai import keychain
 
+# Match login_server / Garmin web expectations so restored sessions behave like a browser.
+GARMIN_BROWSER_USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/131.0.0.0 Safari/537.36"
+)
+
+
+def _apply_garmin_browser_headers(garmin: Garmin) -> None:
+    garmin.garth.sess.headers.update({"User-Agent": GARMIN_BROWSER_USER_AGENT})
+
+
 # Load user profiles from users.json (gitignored — contains personal emails).
 # Falls back to empty dict; unknown users can still log in via `pacerai login`.
 _USERS_FILE = Path(__file__).parent.parent / "users.json"
@@ -45,21 +57,29 @@ def get_garmin_client(user: str = "omer") -> Garmin:
     # 1. Try macOS Keychain — primary auth path
     blob = keychain.load(user)
     if blob:
+        garth_blob, display_name = _decode_blob(blob)
+        g = Garmin()
         try:
-            garth_blob, display_name = _decode_blob(blob)
-            g = Garmin()
             g.garth.loads(garth_blob)
+        except Exception:
+            # Session blob is unusable — only case where we drop Keychain entry.
+            keychain.delete(user)
+        else:
+            _apply_garmin_browser_headers(garmin=g)
             if display_name:
                 g.display_name = display_name
             else:
-                # Missing display_name (old blob) — fetch once and re-save
-                prof = g.garth.connectapi("/userprofile-service/userprofile/profile")
-                g.display_name = prof.get("displayName")
-                keychain.save(user, _encode_blob(garth_blob, g.display_name))
+                # Old blob or empty display_name from login — try once; never wipe tokens on failure.
+                try:
+                    prof = g.garth.connectapi("/userprofile-service/userprofile/profile")
+                    g.display_name = (prof or {}).get("displayName") or ""
+                    keychain.save(
+                        user, _encode_blob(g.garth.dumps(), g.display_name or "")
+                    )
+                except Exception:
+                    pass
             print(f"[{user}] Logged in via Keychain")
             return g
-        except Exception:
-            keychain.delete(user)
 
     # 2. Fall back to file-based tokens (legacy migration path, known users only)
     cfg = USERS.get(user)

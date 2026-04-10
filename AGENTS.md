@@ -10,7 +10,7 @@ Users are configured in `users.json` (gitignored). Use **omer by default**. Swit
 
 ```bash
 # All commands — run from the project root
-poetry run pacerai [--user <name>] <command> [options]
+poetry run pacerai <command> [--user <name>] [options]
 
 # Auth (tokens stored in macOS Keychain)
 poetry run pacerai login                        # browser login form
@@ -24,8 +24,6 @@ poetry run pacerai workouts                     # library
 poetry run pacerai create-workout @file.json    # create from schema
 poetry run pacerai schedule <workout_id> <date> # schedule workout
 poetry run pacerai scheduled --start DATE --end DATE
-# To use another user, --user must come BEFORE the command:
-poetry run pacerai --user rami activities
 ```
 
 All output is JSON: `{"status":"ok","data":{...}}`. For the full command reference and workout JSON schema, read `docs/garmin-cli.md`.
