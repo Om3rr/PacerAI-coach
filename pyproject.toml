@@ -5,7 +5,8 @@ description = "AI-friendly Garmin Connect CLI and marathon coaching toolkit"
 readme = "README.md"
 requires-python = "^3.14"
 dependencies = [
-    "garminconnect[workout] (>=0.2.40,<0.3.0)"
+    "garminconnect[workout] (>=0.2.40,<0.3.0)",
+    "mcp (>=1.27.0,<2.0.0)"
 ]
 
 [project.scripts]

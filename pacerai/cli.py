@@ -272,6 +272,14 @@ def cmd_rename_activity(args):
     ok({"id": args.id, "new_name": args.name, "result": result})
 
 
+def cmd_describe_activity(args):
+    garmin = get_garmin_client(args.user)
+    url = f"{garmin.garmin_connect_activity}/{args.id}"
+    payload = {"activityId": args.id, "description": args.description}
+    result = garmin.garth.post("connectapi", url, json=payload, api=True)
+    ok({"id": args.id, "description": args.description})
+
+
 # ─── Workout library ────────────────────────────────────────────────────────────
 
 def cmd_workouts(args):
@@ -593,6 +601,11 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("id", help="Activity ID")
     sp.add_argument("name", help="New activity name")
     sp.set_defaults(func=cmd_rename_activity)
+
+    sp = sub.add_parser("describe-activity", help="Add a note/description to an activity")
+    sp.add_argument("id", help="Activity ID")
+    sp.add_argument("description", help="Note text to attach to the activity")
+    sp.set_defaults(func=cmd_describe_activity)
 
     # ── workout library ──
     sp = sub.add_parser("workouts", help="List workout library")

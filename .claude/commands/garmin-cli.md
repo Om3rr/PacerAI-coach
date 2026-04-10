@@ -68,6 +68,11 @@ poetry run pacerai delete-activity 12345678
 poetry run pacerai rename-activity 12345678 "Easy Run — Zone 2"
 ```
 
+### Add note/description to activity
+```bash
+poetry run pacerai describe-activity 12345678 "Felt strong. Hit all pace targets. Good progression run."
+```
+
 ### Create manual activity (log a past run)
 ```bash
 poetry run pacerai create-activity \
