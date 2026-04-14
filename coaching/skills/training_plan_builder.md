@@ -114,9 +114,28 @@ Recovery weeks are non-negotiable. Signs that a recovery week is overdue:
 **Interval / VO2max Work**
 - Pace: Approximately 5K to mile race pace; "hard but controlled"
 - Use sparingly — Pfitzinger and 80/20 both caution against overuse at marathon distance
-- Format: 6–10 x 800m at 5K pace with equal jog recovery, or 4–6 x 1200m
 - Frequency: Once per week during build only; reduce in peak phase as MP work takes precedence
 - Source: FIRST uses intervals as a core session; Pfitzinger uses them early in build, not peak
+
+**Interval Format Rotation — MANDATORY**
+
+Never repeat the same interval format two weeks in a row. Rotate across the menu below to vary stimulus, prevent mental staleness, and develop different energy system contributions.
+
+| Format | Total Quality Volume | Best For |
+|--------|---------------------|----------|
+| 6 × 800m @ 5K pace, 90-sec jog recovery | ~5 km | Standard VO2max block |
+| 5 × 1000m @ 5K pace, 2-min jog | ~5 km | Slightly longer sustained effort |
+| 4 × 1200m @ 5K–10K pace, 2-min jog | ~5 km | Bridging toward tempo |
+| 3 × 1600m @ 10K pace, 2.5-min jog | ~5 km | Race-pace endurance |
+| 10 × 400m @ mile pace, 60-sec jog | ~4 km | Speed / leg turnover |
+| 8 × 600m @ 5K pace, 90-sec jog | ~5 km | Medium volume, sharp pace |
+| 2 × (4 × 400m) @ mile–5K, 60-sec / 3-min set rest | ~3.2 km | Structured set work |
+| Fartlek: 6 × 3 min hard / 2 min easy (time-based) | varies | Less rigid, good for fatigue weeks |
+| Ladder: 400–600–800–1000–800–600–400m @ 5K pace | ~4.6 km | Variety within a single session |
+
+**Rotation rule:** Pick the next unused format from the list. After completing the full menu, start again — but shift the pace targets slightly (e.g., target 5K pace one cycle, then mile pace the next) to keep adaptation fresh.
+
+**Volume cap:** Total interval volume (hard reps only, excluding WU/CD) should not exceed 8 km in a single session for athletes under 50 mpw.
 
 **Marathon Pace (MP) Runs**
 - Pace: Goal marathon pace — this is the most race-specific training stimulus
