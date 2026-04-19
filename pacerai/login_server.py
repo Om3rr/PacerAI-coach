@@ -18,7 +18,7 @@ import webbrowser
 from html import escape
 
 from pacerai import keychain
-from pacerai.auth import USERS, _encode_blob
+from pacerai.auth import USERS, _apply_garmin_browser_headers, _encode_blob
 from garminconnect import Garmin
 
 # ─── State (single-session, so module-level is fine) ──────────────────────────
@@ -223,13 +223,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 return
             try:
                 g = Garmin(email, password, return_on_mfa=True)
-                g.garth.sess.headers.update({
-                    "User-Agent": (
-                        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                        "AppleWebKit/537.36 (KHTML, like Gecko) "
-                        "Chrome/131.0.0.0 Safari/537.36"
-                    )
-                })
+                _apply_garmin_browser_headers(garmin=g)
                 result, client_state = g.login()
                 if result == "needs_mfa":
                     _state["status"] = "awaiting_mfa"

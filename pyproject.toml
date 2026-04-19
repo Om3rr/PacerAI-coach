@@ -3,7 +3,7 @@ name = "pacerai"
 version = "0.1.0"
 description = "AI-friendly Garmin Connect CLI and marathon coaching toolkit"
 readme = "README.md"
-requires-python = "^3.14"
+requires-python = ">=3.11,<4"
 dependencies = [
     "garminconnect[workout] (>=0.2.40,<0.3.0)",
     "mcp (>=1.27.0,<2.0.0)"
@@ -13,7 +13,19 @@ dependencies = [
 pacerai = "pacerai.cli:main"
 
 [tool.poetry]
+name = "pacerai"
+version = "0.1.0"
+description = "AI-friendly Garmin Connect CLI and marathon coaching toolkit"
+authors = ["Pacerai"]
+readme = "README.md"
 packages = [{include = "pacerai"}]
+
+[tool.poetry.scripts]
+pacerai = "pacerai.cli:main"
+
+[tool.poetry.dependencies]
+python = ">=3.11,<4"
+garminconnect = {version = ">=0.2.40,<0.3.0", extras = ["workout"]}
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8.0"

@@ -2,9 +2,9 @@
 
 [![CI](https://github.com/Om3rr/PacerAI-coach/actions/workflows/ci.yml/badge.svg)](https://github.com/Om3rr/PacerAI-coach/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-checked-brightgreen)](https://github.com/Om3rr/PacerAI-coach/actions/workflows/ci.yml)
-[![Python](https://img.shields.io/badge/python-3.14%2B-blue)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
 
-**AI-powered Garmin Connect coaching toolkit.** Talk to Claude Code like a personal running coach — it reads your real Garmin data and responds to natural language.
+**AI-powered Garmin Connect coaching toolkit.** Use it from **Claude Code** or **Cursor** (Agent) like a personal running coach — it reads your real Garmin data and responds to natural language. Project context for assistants is in `AGENTS.md`; Cursor also loads skills from `.cursor/skills/`.
 
 ---
 
@@ -36,11 +36,11 @@ Just start a conversation. No commands to memorize.
 
 ## How It Works
 
-1. Claude Code reads your Garmin data through the `pacerai` CLI
+1. Your coding assistant reads your Garmin data through the `pacerai` CLI
 2. It uses the coaching knowledge base (`coaching/`) to interpret it
 3. It gives you a personalized, evidence-based response — not generic advice
 
-**No app to install. No dashboard to visit.** Just open Claude Code in this directory and start talking.
+**No app to install. No dashboard to visit.** Open Claude Code or Cursor in this directory and start talking.
 
 ---
 
@@ -136,7 +136,7 @@ To add a new user: add them to `users.json`, run `poetry run pacerai login --use
 
 ---
 
-## What Claude Can Access
+## What the assistant can access
 
 All data fetched live from Garmin Connect:
 
