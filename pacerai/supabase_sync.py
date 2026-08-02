@@ -10,14 +10,27 @@ Rows are sparse (user, date, source, metric_key, metric_value/text) so new
 metric types never require a schema migration.
 """
 import os
+import time
 from datetime import date, timedelta
 
 import requests
 from dotenv import load_dotenv
+from garminconnect import GarminConnectTooManyRequestsError
 
 from pacerai.auth import get_garmin_client
 
 load_dotenv()
+
+
+def _with_retry(fn, *args, retries=3, base_delay=20, **kwargs):
+    """Retry on Garmin 429s with exponential backoff (20s, 40s, 80s)."""
+    for attempt in range(retries):
+        try:
+            return fn(*args, **kwargs)
+        except GarminConnectTooManyRequestsError:
+            if attempt == retries - 1:
+                raise
+            time.sleep(base_delay * (2 ** attempt))
 
 
 def _env() -> tuple[str, str]:
@@ -238,35 +251,35 @@ def sync_facts(user: str, days: int = 7) -> list[dict]:
 
     rows: list[dict] = []
 
-    for a in garmin.get_activities_by_date(start, end):
+    for a in _with_retry(garmin.get_activities_by_date, start, end):
         rows += facts_from_activity(user, a)
 
     for d in dates:
         try:
-            rows += facts_from_sleep(user, d, garmin.get_sleep_data(d))
+            rows += facts_from_sleep(user, d, _with_retry(garmin.get_sleep_data, d))
         except Exception:
             pass
         try:
-            rows += facts_from_hrv(user, d, garmin.get_hrv_data(d))
+            rows += facts_from_hrv(user, d, _with_retry(garmin.get_hrv_data, d))
         except Exception:
             pass
         try:
-            rows += facts_from_stats(user, d, garmin.get_stats(d))
+            rows += facts_from_stats(user, d, _with_retry(garmin.get_stats, d))
         except Exception:
             pass
         try:
-            rows += facts_from_training_status(user, d, garmin.get_training_status(d))
+            rows += facts_from_training_status(user, d, _with_retry(garmin.get_training_status, d))
         except Exception:
             pass
 
     try:
-        for entry in garmin.get_body_battery(start, end):
+        for entry in _with_retry(garmin.get_body_battery, start, end):
             rows += facts_from_body_battery(user, entry)
     except Exception:
         pass
 
     try:
-        weigh_ins = garmin.get_weigh_ins(start, end)
+        weigh_ins = _with_retry(garmin.get_weigh_ins, start, end)
         for summary in (weigh_ins or {}).get("dailyWeightSummaries", []):
             rows += facts_from_weight(user, summary)
     except Exception:

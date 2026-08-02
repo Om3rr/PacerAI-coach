@@ -1,5 +1,7 @@
 """Tests for Garmin fact extraction (pure functions, no network)."""
+from unittest.mock import patch
 import pytest
+from garminconnect import GarminConnectTooManyRequestsError
 from pacerai.supabase_sync import (
     facts_from_activity,
     facts_from_sleep,
@@ -8,6 +10,7 @@ from pacerai.supabase_sync import (
     facts_from_body_battery,
     facts_from_training_status,
     facts_from_weight,
+    _with_retry,
 )
 
 
@@ -131,6 +134,39 @@ class TestFactsFromBodyBattery:
 
     def test_missing_date_returns_empty(self):
         assert facts_from_body_battery("omer", {"charged": 1}) == []
+
+
+class TestWithRetry:
+    def test_returns_result_on_success(self):
+        assert _with_retry(lambda: 42) == 42
+
+    def test_retries_then_succeeds(self):
+        calls = {"n": 0}
+
+        def flaky():
+            calls["n"] += 1
+            if calls["n"] < 2:
+                raise GarminConnectTooManyRequestsError("rate limited")
+            return "ok"
+
+        with patch("time.sleep"):
+            assert _with_retry(flaky, retries=3, base_delay=0) == "ok"
+        assert calls["n"] == 2
+
+    def test_raises_after_exhausting_retries(self):
+        def always_fails():
+            raise GarminConnectTooManyRequestsError("rate limited")
+
+        with patch("time.sleep"):
+            with pytest.raises(GarminConnectTooManyRequestsError):
+                _with_retry(always_fails, retries=2, base_delay=0)
+
+    def test_non_rate_limit_error_propagates_immediately(self):
+        def boom():
+            raise ValueError("something else")
+
+        with pytest.raises(ValueError):
+            _with_retry(boom, retries=3, base_delay=0)
 
 
 class TestFactsFromWeight:
