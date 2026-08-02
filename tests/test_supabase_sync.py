@@ -1,5 +1,5 @@
 """Tests for Garmin fact extraction (pure functions, no network)."""
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 import pytest
 from garminconnect import GarminConnectTooManyRequestsError
 from pacerai.supabase_sync import (
@@ -11,6 +11,7 @@ from pacerai.supabase_sync import (
     facts_from_training_status,
     facts_from_weight,
     _with_retry,
+    last_synced_date,
 )
 
 
@@ -199,3 +200,25 @@ class TestFactsFromTrainingStatus:
 
     def test_missing_vo2max_returns_empty(self):
         assert facts_from_training_status("omer", "2026-08-01", {}) == []
+
+
+class TestLastSyncedDate:
+    @patch.dict("os.environ", {"SUPABASE_URL": "https://x.supabase.co", "SUPABASE_SERVICE_KEY": "k"})
+    def test_returns_most_recent_date(self):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = [{"fact_date": "2026-08-01"}]
+        mock_resp.raise_for_status = lambda: None
+        with patch("requests.get", return_value=mock_resp) as mock_get:
+            result = last_synced_date("omer")
+        assert result == "2026-08-01"
+        params = mock_get.call_args.kwargs["params"]
+        assert params["order"] == "fact_date.desc"
+        assert params["limit"] == "1"
+
+    @patch.dict("os.environ", {"SUPABASE_URL": "https://x.supabase.co", "SUPABASE_SERVICE_KEY": "k"})
+    def test_returns_none_when_no_rows(self):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = []
+        mock_resp.raise_for_status = lambda: None
+        with patch("requests.get", return_value=mock_resp):
+            assert last_synced_date("omer") is None

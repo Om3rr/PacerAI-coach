@@ -6,6 +6,9 @@ users.json
 # Athlete coaching data (personal health information)
 .coaching_plans/
 
+# Local daily-sync logs (machine-specific)
+scripts/*.log
+
 # Python
 __pycache__/
 *.pyc

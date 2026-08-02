@@ -588,6 +588,11 @@ def cmd_read_facts(args):
     ok(rows)
 
 
+def cmd_last_synced(args):
+    from pacerai import supabase_sync
+    ok({"user": args.user, "last_fact_date": supabase_sync.last_synced_date(args.user)})
+
+
 def cmd_push_coaching_note(args):
     from pacerai import supabase_sync
     if args.body.startswith("@"):
@@ -808,6 +813,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--source", help="Filter to one source, e.g. activity, sleep, hrv, stats, body_battery, training_status")
     sp.set_defaults(func=cmd_read_facts)
 
+    sp = sub.add_parser("last-synced", help="Most recent fact_date synced to Supabase for this user (or null if never synced)")
+    sp.set_defaults(func=cmd_last_synced)
+
     sp = sub.add_parser("push-coaching-note", help="Save an AI-authored coaching note/recommendation to Supabase")
     sp.add_argument("--date", required=True, help="YYYY-MM-DD this note is written for")
     sp.add_argument("--period-start", help="YYYY-MM-DD (optional, for weekly/period notes)")
@@ -816,7 +824,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--body", required=True, help="Note text, or @filepath")
     sp.add_argument("--tags", help="Comma-separated tags, e.g. injury,pacing")
     sp.add_argument("--status", choices=["draft", "final"], default="final")
-    sp.add_argument("--generated-by", choices=["claude-interactive", "claude-api", "manual"], default="claude-interactive")
+    sp.add_argument("--generated-by", choices=["claude-interactive", "claude-headless", "claude-api", "manual"], default="claude-interactive")
     sp.set_defaults(func=cmd_push_coaching_note)
 
     sp = sub.add_parser("read-coaching-notes", help="Read past coaching notes from Supabase")

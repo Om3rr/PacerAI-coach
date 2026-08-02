@@ -251,20 +251,22 @@ Persist Garmin data and coaching interpretations to Supabase so sessions have me
 
 **One-time setup:** paste `supabase/schema.sql` into your Supabase project's SQL editor, then add `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` to your `.env` (see `.env.example`).
 
-### Automated daily sync (GitHub Actions)
+### Automated daily sync (local, via launchd)
 
-`.github/workflows/sync-facts.yml` runs `pacerai sync-facts --days 2` once a day (03:00 UTC) so `garmin_facts` stays current without manual syncing. It has no macOS Keychain to log in with, so it authenticates via a token passed as a repo secret instead.
+Garmin blocks/rate-limits the OAuth login flow from GitHub Actions' shared runner IPs, so the daily sync runs locally instead, using the Keychain auth that already works on this machine. `scripts/daily_sync.sh`:
+
+1. Checks `pacerai last-synced` — if facts are already synced for today, exits immediately (safe to fire more than once a day).
+2. Otherwise runs `pacerai sync-facts` for the gap since the last sync (capped at 14 days).
+3. Runs a headless Claude Code session (`claude -p`, scoped to only the `pacerai` CLI via `--allowedTools`) that reads recent facts + prior coaching notes and writes a new note **only if there's something genuinely new to say** — it won't spam a note every day just because one ran.
 
 **Setup (one time):**
 
-1. `poetry run pacerai export-token` — prints your current Keychain token blob and the env var name it needs (`GARMIN_TOKEN_<USER>`). Treat the output like a password; it grants full account access.
-2. In GitHub: repo → **Settings → Secrets and variables → Actions → New repository secret**. Add:
-   - `GARMIN_TOKEN_OMER` — the `token_blob` value from step 1
-   - `SUPABASE_URL` — from your `.env`
-   - `SUPABASE_SERVICE_KEY` — from your `.env`
-3. Done — the workflow will run on schedule, or trigger it manually from the Actions tab (`workflow_dispatch`).
+1. Edit `scripts/com.pacerai.dailysync.plist.example`, replacing `/ABSOLUTE/PATH/TO/garminus` with this repo's real path.
+2. `cp scripts/com.pacerai.dailysync.plist.example ~/Library/LaunchAgents/com.pacerai.dailysync.plist`
+3. `launchctl load ~/Library/LaunchAgents/com.pacerai.dailysync.plist`
+4. Confirm it's registered: `launchctl list | grep pacerai`
 
-The token doesn't need rotating regularly — garth refreshes the short-lived access token automatically from the longer-lived one baked into the blob.
+It's scheduled for 07:00 with `RunAtLoad` as a catch-up if the Mac was off/asleep at that time — since "once a day" here means once per calendar day whenever the machine is next awake, not a fixed clock time. Logs land in `scripts/daily_sync.log` (gitignored). To stop it: `launchctl unload ~/Library/LaunchAgents/com.pacerai.dailysync.plist`.
 
 ---
 

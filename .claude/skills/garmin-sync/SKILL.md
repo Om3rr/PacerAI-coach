@@ -10,7 +10,7 @@ Pacerai stores two kinds of data in Supabase, kept deliberately separate:
 - **Facts** (`garmin_facts` table) — raw Garmin data (activities, sleep, HRV, stats, body battery, training status), flattened into sparse `(user, date, source, metric_key, value)` rows. Pure code transformation, **no AI involved**. Safe to run unattended later (e.g. a scheduled job).
 - **Coaching notes** (`coaching_notes` table) — dated interpretations/recommendations. **Always AI-authored** — Claude reads the facts, reasons about them, writes the note. The sync commands themselves never generate interpretation text.
 
-This separation means facts can be kept fresh by a dumb scheduled job with no AI access, while the actual coaching judgment always comes from a model reading the facts (interactively today; potentially a headless LLM call later — same commands, different `--generated-by` value).
+This separation means facts can be kept fresh by a dumb scheduled job with no AI access, while the actual coaching judgment always comes from a model reading the facts — interactively in a chat session (`--generated-by claude-interactive`, the default) or from the daily headless job (`--generated-by claude-headless`, see below).
 
 ## When to use
 
@@ -39,6 +39,9 @@ pacerai push-coaching-note --date 2026-04-07 \
 
 # Read back prior coaching context
 pacerai read-coaching-notes --start 2026-04-01 --end 2026-04-07
+
+# Most recent synced date (used by the daily job's dedup check)
+pacerai last-synced
 ```
 
 `--body` also accepts `@filepath` for longer notes.
@@ -63,9 +66,11 @@ pacerai read-coaching-notes --start 2026-04-01 --end 2026-04-07
 
 `supabase/schema.sql` creates both tables — run once via the Supabase SQL editor (PostgREST can't run DDL). `.env` needs `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` (the **secret** key, not publishable/anon — this runs server-side and needs to bypass RLS).
 
-## Automated sync (GitHub Actions)
+## Automated sync (local, via launchd)
 
-`.github/workflows/sync-facts.yml` runs `sync-facts --days 2` daily. No macOS Keychain in CI, so auth goes through an env var instead: `pacerai/auth.py::get_garmin_client` falls back to `GARMIN_TOKEN_<USER>` (same blob format as Keychain) when Keychain and the legacy file token store both come up empty. Export the current Keychain blob with `pacerai export-token` and set it as a GitHub Actions secret — see README "Automated daily sync" for the full setup. Treat that blob as a password; never print or commit it.
+GitHub Actions was tried first but Garmin appears to block/rate-limit the OAuth login flow from GitHub's shared runner IPs (429 on the OAuth exchange endpoint on the very first real attempt). The daily sync now runs locally instead: `scripts/daily_sync.sh`, scheduled via `launchd` (see `scripts/com.pacerai.dailysync.plist.example`), checks `pacerai last-synced` to avoid double-running, calls `sync-facts` for the gap, then runs a headless Claude Code session (`claude -p`, restricted to the `pacerai` CLI via `--allowedTools`) that only writes a new coaching note if something's actually changed since the last one. Full setup in README "Automated daily sync (local, via launchd)".
+
+`pacerai export-token` / the `GARMIN_TOKEN_<USER>` env-var auth fallback in `auth.py` are no longer used for this but left in place — harmless, generically useful if a headless/CI setup is worth revisiting later (e.g. a residential-IP self-hosted runner).
 
 ## Caution
 

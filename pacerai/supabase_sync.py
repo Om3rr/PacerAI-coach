@@ -294,6 +294,17 @@ def push_facts(rows: list[dict]) -> int:
     return len(rows)
 
 
+def last_synced_date(user: str) -> str | None:
+    """Most recent fact_date synced for this user, or None if never synced."""
+    rows = _select("garmin_facts", {
+        "user_name": f"eq.{user}",
+        "order": "fact_date.desc",
+        "limit": "1",
+        "select": "fact_date",
+    })
+    return rows[0]["fact_date"] if rows else None
+
+
 def read_facts(user: str, start: str, end: str, source: str | None = None) -> list[dict]:
     params = {
         "user_name": f"eq.{user}",

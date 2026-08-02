@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Runs scripts/daily_sync.sh once a day (07:00, best-effort) and also at
+  login/wake (RunAtLoad) to catch up if the Mac was off/asleep at 07:00.
+  The script's own Supabase last-synced check makes any extra firing a
+  no-op, so it's safe for this to run more than once on a given day.
+
+  Setup:
+    1. Replace /ABSOLUTE/PATH/TO/garminus below with this repo's real path
+       (e.g. /Users/you/workspace/garminus) — launchd needs an absolute path.
+    2. cp scripts/com.pacerai.dailysync.plist.example \
+         ~/Library/LaunchAgents/com.pacerai.dailysync.plist
+    3. launchctl load ~/Library/LaunchAgents/com.pacerai.dailysync.plist
+    4. Check it's registered: launchctl list | grep pacerai
+    5. Logs land in the StandardOutPath/StandardErrorPath below.
+
+  To stop it: launchctl unload ~/Library/LaunchAgents/com.pacerai.dailysync.plist
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.pacerai.dailysync</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/ABSOLUTE/PATH/TO/garminus/scripts/daily_sync.sh</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>7</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/ABSOLUTE/PATH/TO/garminus/scripts/daily_sync.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/ABSOLUTE/PATH/TO/garminus/scripts/daily_sync.log</string>
+</dict>
+</plist>
