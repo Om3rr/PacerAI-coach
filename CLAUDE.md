@@ -71,6 +71,10 @@ This directory is gitignored (contains personal health data). Create it on first
 
 Add `.coaching_plans/` to `.gitignore` (already done).
 
+## Facts & Coaching Sync (Supabase)
+
+Before coaching, check for prior context: `pacerai read-facts --start <date> --end <date>` and `pacerai read-coaching-notes --start <date> --end <date>`. After producing an interpretation or recommendation, persist it with `pacerai push-coaching-note --date <date> --body "..."` so future sessions have continuity. `sync-facts` is deterministic (no AI) and just mirrors Garmin data into Supabase — run it to keep facts current, but the *interpretation* is always written by Claude, not by the sync command itself.
+
 ## Workout Design Principles
 
 - **Base/easy runs**: use heart-rate targets.

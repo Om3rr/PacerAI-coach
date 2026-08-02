@@ -10,7 +10,16 @@ import argparse
 import json
 import sys
 from datetime import date, datetime
+from pathlib import Path
 from pacerai.auth import get_garmin_client
+
+# ─── Strength exercise catalogue ───────────────────────────────────────────────
+
+_EXERCISES_FILE = Path(__file__).parent / "strength" / "Exercises.json"
+EXERCISES: dict = {}
+if _EXERCISES_FILE.exists():
+    with open(_EXERCISES_FILE) as _f:
+        EXERCISES = json.load(_f)
 
 
 # ─── Output helpers ────────────────────────────────────────────────────────────
@@ -173,12 +182,25 @@ def _build_steps(steps: list, order_start: int = 1) -> list:
                 "targetValueOne": v1,
                 "targetValueTwo": v2,
             }
-            # Strength exercise category (optional)
-            if "exercise" in s:
-                step_dict["exerciseCategory"] = {
-                    "exerciseCategoryId": None,
-                    "exerciseCategoryName": s["exercise"].upper(),
-                }
+            # Strength exercise fields (optional) — use `category` and `exercise_name`
+            raw_cat = s.get("category") or s.get("exercise")
+            raw_ex = s.get("exercise_name")
+            if raw_cat:
+                cat = raw_cat.upper()
+                if EXERCISES and cat not in EXERCISES:
+                    valid = list(EXERCISES.keys())
+                    raise ValueError(f"Unknown exercise category '{cat}'. Valid: {valid}")
+                step_dict["category"] = cat
+            if raw_ex:
+                ex = raw_ex.upper()
+                if EXERCISES and raw_cat:
+                    cat = raw_cat.upper()
+                    valid_names = list(EXERCISES.get(cat, {}).get("exercises", {}).keys())
+                    if valid_names and ex not in valid_names:
+                        raise ValueError(
+                            f"Unknown exercise '{ex}' for category '{cat}'. Valid: {valid_names}"
+                        )
+                step_dict["exerciseName"] = ex
             result.append(step_dict)
             order += 1
         else:
@@ -342,6 +364,19 @@ def cmd_create_workout(args):
     garmin = get_garmin_client(args.user)
     result = garmin.upload_workout(payload)
     ok({"workout_id": result.get("workoutId"), "name": payload["workoutName"], "result": result})
+
+
+def cmd_list_exercises(args):
+    """List valid exercise categories and their exercise names from the local catalogue."""
+    if not EXERCISES:
+        err("Exercise catalogue not found (pacerai/strength/Exercises.json missing)")
+    cat = args.category.upper() if args.category else None
+    if cat:
+        if cat not in EXERCISES:
+            err(f"Unknown category '{cat}'. Valid: {list(EXERCISES.keys())}")
+        ok({cat: list(EXERCISES[cat]["exercises"].keys())})
+    else:
+        ok({c: list(data["exercises"].keys()) for c, data in EXERCISES.items()})
 
 
 def cmd_delete_workout(args):
@@ -535,6 +570,56 @@ def cmd_personal_records(args):
     ok(garmin.get_personal_record())
 
 
+# ─── Facts + coaching sync ──────────────────────────────────────────────────
+
+def cmd_sync_facts(args):
+    from pacerai import supabase_sync
+    rows = supabase_sync.sync_facts(args.user, days=args.days)
+    if args.dry_run:
+        ok({"dry_run": True, "rows": rows, "row_count": len(rows)})
+        return
+    n = supabase_sync.push_facts(rows)
+    ok({"rows_synced": n})
+
+
+def cmd_read_facts(args):
+    from pacerai import supabase_sync
+    rows = supabase_sync.read_facts(args.user, args.start, args.end, source=args.source)
+    ok(rows)
+
+
+def cmd_push_coaching_note(args):
+    from pacerai import supabase_sync
+    if args.body.startswith("@"):
+        path = args.body[1:]
+        try:
+            with open(path) as f:
+                body = f.read()
+        except FileNotFoundError:
+            err(f"File not found: {path}")
+    else:
+        body = args.body
+    tags = args.tags.split(",") if args.tags else None
+    result = supabase_sync.push_coaching_note(
+        args.user,
+        args.date,
+        body,
+        period_start=args.period_start,
+        period_end=args.period_end,
+        title=args.title,
+        tags=tags,
+        status=args.status,
+        generated_by=args.generated_by,
+    )
+    ok(result)
+
+
+def cmd_read_coaching_notes(args):
+    from pacerai import supabase_sync
+    rows = supabase_sync.read_coaching_notes(args.user, args.start, args.end)
+    ok(rows)
+
+
 def cmd_login(args):
     """Open a local browser login form, authenticate, and save tokens to Keychain."""
     from pacerai import keychain as kc
@@ -554,6 +639,22 @@ def cmd_logout(args):
     from pacerai import keychain as kc
     kc.delete(args.user)
     ok({"user": args.user, "message": "Tokens removed from Keychain."})
+
+
+def cmd_export_token(args):
+    """Print the Keychain token blob for headless auth (e.g. GitHub Actions secrets)."""
+    from pacerai import keychain as kc
+    from pacerai.auth import _env_token_var
+    blob = kc.load(args.user)
+    if not blob:
+        err(f"No tokens in Keychain for '{args.user}'. Run: poetry run pacerai --user {args.user} login")
+    ok({
+        "user": args.user,
+        "env_var": _env_token_var(args.user),
+        "token_blob": blob,
+        "warning": "This grants full account access, equivalent to a password. "
+                   "Paste it only into a GitHub Actions secret (or similar), never commit it.",
+    })
 
 
 # ─── Arg parser ────────────────────────────────────────────────────────────────
@@ -630,6 +731,10 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("id", help="Workout ID")
     sp.set_defaults(func=cmd_delete_workout)
 
+    sp = sub.add_parser("list-exercises", help="List valid exercise categories and names for strength workouts")
+    sp.add_argument("--category", "-c", help="Filter to a specific category (e.g. SQUAT, DEADLIFT)")
+    sp.set_defaults(func=cmd_list_exercises)
+
     # ── scheduling ──
     sp = sub.add_parser("schedule", help="Schedule a library workout on a date")
     sp.add_argument("workout_id", help="Workout ID")
@@ -691,6 +796,34 @@ def build_parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("personal-records", help="Personal records")
     sp.set_defaults(func=cmd_personal_records)
 
+    # ── facts + coaching sync ──
+    sp = sub.add_parser("sync-facts", help="Sync recent Garmin activity/health data to Supabase (no AI)")
+    sp.add_argument("--days", type=int, default=7, help="How many days back to sync (default: 7)")
+    sp.add_argument("--dry-run", action="store_true", help="Print rows without pushing to Supabase")
+    sp.set_defaults(func=cmd_sync_facts)
+
+    sp = sub.add_parser("read-facts", help="Read synced facts back from Supabase")
+    sp.add_argument("--start", required=True, help="YYYY-MM-DD")
+    sp.add_argument("--end", required=True, help="YYYY-MM-DD")
+    sp.add_argument("--source", help="Filter to one source, e.g. activity, sleep, hrv, stats, body_battery, training_status")
+    sp.set_defaults(func=cmd_read_facts)
+
+    sp = sub.add_parser("push-coaching-note", help="Save an AI-authored coaching note/recommendation to Supabase")
+    sp.add_argument("--date", required=True, help="YYYY-MM-DD this note is written for")
+    sp.add_argument("--period-start", help="YYYY-MM-DD (optional, for weekly/period notes)")
+    sp.add_argument("--period-end", help="YYYY-MM-DD (optional, for weekly/period notes)")
+    sp.add_argument("--title", help="Short title")
+    sp.add_argument("--body", required=True, help="Note text, or @filepath")
+    sp.add_argument("--tags", help="Comma-separated tags, e.g. injury,pacing")
+    sp.add_argument("--status", choices=["draft", "final"], default="final")
+    sp.add_argument("--generated-by", choices=["claude-interactive", "claude-api", "manual"], default="claude-interactive")
+    sp.set_defaults(func=cmd_push_coaching_note)
+
+    sp = sub.add_parser("read-coaching-notes", help="Read past coaching notes from Supabase")
+    sp.add_argument("--start", required=True, help="YYYY-MM-DD")
+    sp.add_argument("--end", required=True, help="YYYY-MM-DD")
+    sp.set_defaults(func=cmd_read_coaching_notes)
+
     # ── auth ──
     sp = sub.add_parser("login", help="Open browser login form and save tokens to Keychain")
     sp.add_argument("--force", action="store_true", help="Re-authenticate even if tokens exist")
@@ -698,6 +831,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = sub.add_parser("logout", help="Remove tokens from Keychain")
     sp.set_defaults(func=cmd_logout)
+
+    sp = sub.add_parser("export-token", help="Print the Keychain token blob for use as a GitHub Actions secret")
+    sp.set_defaults(func=cmd_export_token)
 
     return p
 

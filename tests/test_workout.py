@@ -168,8 +168,7 @@ class TestBuildSteps:
                 "target": {"type": "none"},
             }
         ])
-        assert "exerciseCategory" in steps[0]
-        assert steps[0]["exerciseCategory"]["exerciseCategoryName"] == "CORE"
+        assert steps[0]["category"] == "CORE"
 
     def test_unknown_step_type_raises(self):
         with pytest.raises(ValueError, match="Unknown step type"):

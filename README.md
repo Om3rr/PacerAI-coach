@@ -180,6 +180,12 @@ pacerai create-workout @my_workout.json
 pacerai create-workout @my_workout.json --dry-run
 pacerai schedule <workout_id> 2026-04-10
 
+# Facts & coaching sync (Supabase)
+pacerai sync-facts --days 7                  # pull recent Garmin data, push as facts (no AI)
+pacerai read-facts --start 2026-04-01 --end 2026-04-07
+pacerai push-coaching-note --date 2026-04-07 --title "Week check-in" --body "..."
+pacerai read-coaching-notes --start 2026-04-01 --end 2026-04-07
+
 # Auth
 pacerai login
 pacerai logout
@@ -233,6 +239,32 @@ Push structured workouts directly to your Garmin device:
 ```
 
 **Pace notation:** decimal minutes. `4.5` = 4:30/km. `min_km` = faster bound, `max_km` = slower bound.
+
+---
+
+## Facts & Coaching Sync
+
+Persist Garmin data and coaching interpretations to Supabase so sessions have memory across time.
+
+- **Facts** (`sync-facts` / `read-facts`) — deterministic, no AI. Flattens activities, sleep, HRV, stats, body battery, and training status into sparse rows (`user, date, source, metric_key, value`) in the `garmin_facts` table. Safe to run unattended (e.g. a future scheduled job).
+- **Coaching notes** (`push-coaching-note` / `read-coaching-notes`) — AI-authored interpretations/recommendations, stored in `coaching_notes`. Claude reads facts, writes the interpretation itself, then calls `push-coaching-note` to persist it — the CLI does no AI work.
+
+**One-time setup:** paste `supabase/schema.sql` into your Supabase project's SQL editor, then add `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` to your `.env` (see `.env.example`).
+
+### Automated daily sync (GitHub Actions)
+
+`.github/workflows/sync-facts.yml` runs `pacerai sync-facts --days 2` once a day (03:00 UTC) so `garmin_facts` stays current without manual syncing. It has no macOS Keychain to log in with, so it authenticates via a token passed as a repo secret instead.
+
+**Setup (one time):**
+
+1. `poetry run pacerai export-token` — prints your current Keychain token blob and the env var name it needs (`GARMIN_TOKEN_<USER>`). Treat the output like a password; it grants full account access.
+2. In GitHub: repo → **Settings → Secrets and variables → Actions → New repository secret**. Add:
+   - `GARMIN_TOKEN_OMER` — the `token_blob` value from step 1
+   - `SUPABASE_URL` — from your `.env`
+   - `SUPABASE_SERVICE_KEY` — from your `.env`
+3. Done — the workflow will run on schedule, or trigger it manually from the Actions tab (`workflow_dispatch`).
+
+The token doesn't need rotating regularly — garth refreshes the short-lived access token automatically from the longer-lived one baked into the blob.
 
 ---
 

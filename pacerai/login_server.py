@@ -272,12 +272,14 @@ class _Handler(http.server.BaseHTTPRequestHandler):
 
 def _finalise(g: Garmin):
     """Save tokens + display_name to keychain and mark state as done."""
-    # Fetch display_name (needed by garminconnect for most endpoints)
-    try:
-        prof = g.garth.connectapi("/userprofile-service/userprofile/profile")
-        display_name = prof.get("displayName", "")
-    except Exception:
-        display_name = ""
+    display_name = getattr(g, "display_name", None) or ""
+    if not display_name:
+        try:
+            prof = g.garth.connectapi("/userprofile-service/userprofile/profile")
+            display_name = prof.get("displayName", "")
+            g.display_name = display_name
+        except Exception:
+            pass
     blob = _encode_blob(g.garth.dumps(), display_name)
     keychain.save(_user, blob)
     _state["status"] = "done"

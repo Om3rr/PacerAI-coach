@@ -1,0 +1,37 @@
+name: Sync Garmin Facts
+
+on:
+  schedule:
+    - cron: "0 3 * * *"   # 03:00 UTC daily
+  workflow_dispatch: {}    # allow manual runs from the Actions tab
+
+jobs:
+  sync:
+    name: Sync Garmin facts to Supabase
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          allow-prereleases: true
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Install dependencies
+        run: poetry install --without dev
+
+      - name: Sync facts
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          GARMIN_TOKEN_OMER: ${{ secrets.GARMIN_TOKEN_OMER }}
+        run: poetry run pacerai sync-facts --days 2

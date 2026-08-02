@@ -41,8 +41,13 @@ def _decode_blob(blob: str) -> tuple[str, str | None]:
     return blob, None
 
 
+def _env_token_var(user: str) -> str:
+    """Env var name checked for a headless (e.g. CI) token blob for this user."""
+    return f"GARMIN_TOKEN_{user.upper()}"
+
+
 def get_garmin_client(user: str = "omer") -> Garmin:
-    # 1. Try macOS Keychain — primary auth path
+    # 1. Try macOS Keychain — primary auth path for local/interactive use
     blob = keychain.load(user)
     if blob:
         try:
@@ -51,11 +56,6 @@ def get_garmin_client(user: str = "omer") -> Garmin:
             g.garth.loads(garth_blob)
             if display_name:
                 g.display_name = display_name
-            else:
-                # Missing display_name (old blob) — fetch once and re-save
-                prof = g.garth.connectapi("/userprofile-service/userprofile/profile")
-                g.display_name = prof.get("displayName")
-                keychain.save(user, _encode_blob(garth_blob, g.display_name))
             print(f"[{user}] Logged in via Keychain")
             return g
         except Exception:
@@ -74,6 +74,18 @@ def get_garmin_client(user: str = "omer") -> Garmin:
             return g
         except Exception:
             pass
+
+    # 3. Fall back to an env var token blob — no macOS Keychain in CI (e.g. GitHub
+    # Actions). Same blob format as Keychain; export it with `pacerai export-token`.
+    env_blob = os.environ.get(_env_token_var(user))
+    if env_blob:
+        garth_blob, display_name = _decode_blob(env_blob)
+        g = Garmin()
+        g.garth.loads(garth_blob)
+        if display_name:
+            g.display_name = display_name
+        print(f"[{user}] Logged in via {_env_token_var(user)}")
+        return g
 
     raise RuntimeError(
         f"No valid tokens for '{user}'. "
