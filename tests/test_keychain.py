@@ -76,6 +76,26 @@ class TestKeychainDelete:
             keychain.delete("nonexistent")
 
 
+class TestKeychainNoSecurityBinary:
+    """On non-macOS (e.g. GitHub Actions), `security` doesn't exist — must not crash."""
+
+    def test_load_returns_none(self):
+        with patch("subprocess.run", side_effect=FileNotFoundError):
+            assert keychain.load("omer") is None
+
+    def test_exists_returns_false(self):
+        with patch("subprocess.run", side_effect=FileNotFoundError):
+            assert keychain.exists("omer") is False
+
+    def test_save_does_not_raise(self):
+        with patch("subprocess.run", side_effect=FileNotFoundError):
+            keychain.save("omer", "blob")
+
+    def test_delete_does_not_raise(self):
+        with patch("subprocess.run", side_effect=FileNotFoundError):
+            keychain.delete("omer")
+
+
 class TestKeychainExists:
     def test_returns_true_when_found(self):
         with patch("subprocess.run", return_value=MagicMock(returncode=0)):
