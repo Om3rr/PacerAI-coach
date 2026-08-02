@@ -594,7 +594,7 @@ def cmd_last_synced(args):
 
 
 def cmd_push_coaching_note(args):
-    from pacerai import supabase_sync
+    from pacerai import supabase_sync, telegram
     if args.body.startswith("@"):
         path = args.body[1:]
         try:
@@ -616,6 +616,13 @@ def cmd_push_coaching_note(args):
         status=args.status,
         generated_by=args.generated_by,
     )
+    try:
+        result["telegram_notified"] = telegram.send_message(
+            telegram.format_coaching_note_message(result)
+        )
+    except Exception as e:
+        result["telegram_notified"] = False
+        result["telegram_error"] = str(e)
     ok(result)
 
 

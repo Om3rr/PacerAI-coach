@@ -251,6 +251,8 @@ Persist Garmin data and coaching interpretations to Supabase so sessions have me
 
 **One-time setup:** paste `supabase/schema.sql` into your Supabase project's SQL editor, then add `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` to your `.env` (see `.env.example`).
 
+**Optional — Telegram notification on every new note:** `push-coaching-note` sends a Telegram message whenever `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` are set in `.env`. Create a bot via [@BotFather](https://t.me/BotFather) (`/newbot`), message it once, then visit `https://api.telegram.org/bot<TOKEN>/getUpdates` to find your chat id. Leave unset to disable — it never blocks the note from saving either way.
+
 ### Automated daily sync (local, via launchd)
 
 Garmin blocks/rate-limits the OAuth login flow from GitHub Actions' shared runner IPs, so the daily sync runs locally instead, using the Keychain auth that already works on this machine. `scripts/daily_sync.sh`:

@@ -66,6 +66,8 @@ pacerai last-synced
 
 `supabase/schema.sql` creates both tables — run once via the Supabase SQL editor (PostgREST can't run DDL). `.env` needs `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` (the **secret** key, not publishable/anon — this runs server-side and needs to bypass RLS).
 
+`push-coaching-note` also sends a Telegram message if `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` are set in `.env` (optional — silently skipped otherwise, never blocks the note from saving). See `pacerai/telegram.py`.
+
 ## Automated sync (local, via launchd)
 
 GitHub Actions was tried first but Garmin appears to block/rate-limit the OAuth login flow from GitHub's shared runner IPs (429 on the OAuth exchange endpoint on the very first real attempt). The daily sync now runs locally instead: `scripts/daily_sync.sh`, scheduled via `launchd` (see `scripts/com.pacerai.dailysync.plist.example`), checks `pacerai last-synced` to avoid double-running, calls `sync-facts` for the gap, then runs a headless Claude Code session (`claude -p`, restricted to the `pacerai` CLI via `--allowedTools`) that only writes a new coaching note if something's actually changed since the last one. Full setup in README "Automated daily sync (local, via launchd)".
