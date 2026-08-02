@@ -91,3 +91,19 @@ def get_garmin_client(user: str = "omer") -> Garmin:
         f"No valid tokens for '{user}'. "
         f"Run: poetry run pacerai --user {user} login"
     )
+
+
+def persist_token(user: str, g: Garmin) -> None:
+    """Re-save the (possibly refreshed) token blob back to Keychain.
+
+    garth refreshes the OAuth2 access token lazily, on the first API call
+    after it expires — not at load time. If that refresh is never saved,
+    every new process keeps reloading the same stale blob and re-triggers
+    the OAuth1->OAuth2 exchange, which Garmin rate-limits per account.
+    No-op on non-macOS (no Keychain to write to) or if anything goes wrong.
+    """
+    try:
+        blob = _encode_blob(g.garth.dumps(), g.display_name or "")
+        keychain.save(user, blob)
+    except Exception:
+        pass

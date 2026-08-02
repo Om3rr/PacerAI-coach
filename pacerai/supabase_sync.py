@@ -17,7 +17,7 @@ import requests
 from dotenv import load_dotenv
 from garminconnect import GarminConnectTooManyRequestsError
 
-from pacerai.auth import get_garmin_client
+from pacerai.auth import get_garmin_client, persist_token
 
 load_dotenv()
 
@@ -285,6 +285,7 @@ def sync_facts(user: str, days: int = 7) -> list[dict]:
     except Exception:
         pass
 
+    persist_token(user, garmin)
     return rows
 
 

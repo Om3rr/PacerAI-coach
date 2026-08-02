@@ -1,8 +1,9 @@
 """Tests for auth blob encoding/decoding."""
 import base64
 import json
+from unittest.mock import patch, MagicMock
 import pytest
-from pacerai.auth import _encode_blob, _decode_blob
+from pacerai.auth import _encode_blob, _decode_blob, persist_token
 
 
 class TestEncodeBlob:
@@ -72,3 +73,35 @@ class TestDecodeBlob:
         garth, display = _decode_blob(blob)
         # Falls back to returning the blob as-is
         assert display is None
+
+
+class TestPersistToken:
+    def test_saves_refreshed_blob_to_keychain(self):
+        g = MagicMock()
+        g.garth.dumps.return_value = "refreshed_garth_blob"
+        g.display_name = "Omer S"
+        with patch("pacerai.auth.keychain.save") as mock_save:
+            persist_token("omer", g)
+        mock_save.assert_called_once()
+        user_arg, blob_arg = mock_save.call_args[0]
+        assert user_arg == "omer"
+        garth_blob, display = _decode_blob(blob_arg)
+        assert garth_blob == "refreshed_garth_blob"
+        assert display == "Omer S"
+
+    def test_does_not_raise_if_save_fails(self):
+        g = MagicMock()
+        g.garth.dumps.return_value = "blob"
+        g.display_name = "Omer S"
+        with patch("pacerai.auth.keychain.save", side_effect=Exception("no keychain")):
+            persist_token("omer", g)  # should not raise
+
+    def test_handles_missing_display_name(self):
+        g = MagicMock()
+        g.garth.dumps.return_value = "blob"
+        g.display_name = None
+        with patch("pacerai.auth.keychain.save") as mock_save:
+            persist_token("omer", g)
+        _, blob_arg = mock_save.call_args[0]
+        _, display = _decode_blob(blob_arg)
+        assert display == ""
