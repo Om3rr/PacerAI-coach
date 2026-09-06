@@ -253,6 +253,18 @@ Persist Garmin data and coaching interpretations to Supabase so sessions have me
 
 **Optional — Telegram notification on every new note:** `push-coaching-note` sends a Telegram message whenever `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` are set in `.env`. Create a bot via [@BotFather](https://t.me/BotFather) (`/newbot`), message it once, then visit `https://api.telegram.org/bot<TOKEN>/getUpdates` to find your chat id. Leave unset to disable — it never blocks the note from saving either way.
 
+### Daily export on GitHub Actions (token secret)
+
+Uses the existing env-var auth path (`GARMIN_TOKEN_OMER`) so the job never opens a browser or Keychain.
+
+1. On your Mac: `poetry run pacerai --user omer export-token`
+2. Copy `token_blob` into a **repository secret** named `GARMIN_TOKEN_OMER`  
+   (Settings → Secrets and variables → Actions)
+3. Optional: also set `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` to run `sync-facts`
+4. Workflow: `.github/workflows/daily-export.yml` — 07:00 Israel time, plus manual **Run workflow**
+
+This can still fail if Garmin rate-limits GitHub-hosted IPs. If that happens, keep using the local launchd sync below.
+
 ### Automated daily sync (local, via launchd)
 
 Garmin blocks/rate-limits the OAuth login flow from GitHub Actions' shared runner IPs, so the daily sync runs locally instead, using the Keychain auth that already works on this machine. `scripts/daily_sync.sh`:
