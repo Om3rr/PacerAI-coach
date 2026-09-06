@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/Om3rr/PacerAI-coach/actions/workflows/ci.yml/badge.svg)](https://github.com/Om3rr/PacerAI-coach/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-checked-brightgreen)](https://github.com/Om3rr/PacerAI-coach/actions/workflows/ci.yml)
-[![Python](https://img.shields.io/badge/python-3.14%2B-blue)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/)
 
 **AI-powered Garmin Connect coaching toolkit.** Talk to Claude Code like a personal running coach — it reads your real Garmin data and responds to natural language.
 

@@ -3,7 +3,7 @@ name = "pacerai"
 version = "0.1.0"
 description = "AI-friendly Garmin Connect CLI and marathon coaching toolkit"
 readme = "README.md"
-requires-python = "^3.14"
+requires-python = ">=3.12"
 dependencies = [
     "garminconnect[workout] (>=0.2.40,<0.3.0)",
     "mcp (>=1.27.0,<2.0.0)",
