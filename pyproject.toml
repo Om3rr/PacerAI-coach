@@ -18,7 +18,7 @@ pacerai = "pacerai.cli:main"
 packages = [{include = "pacerai"}]
 
 [tool.poetry.group.dev.dependencies]
-pytest = ">=8.0"
+pytest = ">=9.1.1"
 pytest-cov = ">=5.0"
 
 [tool.pytest.ini_options]
