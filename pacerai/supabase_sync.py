@@ -10,8 +10,10 @@ Rows are sparse (user, date, source, metric_key, metric_value/text) so new
 metric types never require a schema migration.
 """
 import os
+import re
 import time
 from datetime import date, timedelta
+from urllib.parse import urlparse
 
 import requests
 from dotenv import load_dotenv
@@ -20,6 +22,47 @@ from garminconnect import GarminConnectTooManyRequestsError
 from pacerai.auth import get_garmin_client, persist_token
 
 load_dotenv()
+
+_IDENT_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_TABLES = frozenset({"garmin_facts", "coaching_notes"})
+_LOCAL_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+
+
+def _ident(value: str, name: str = "value") -> str:
+    """Reject PostgREST filter metacharacters in path/query values."""
+    if not isinstance(value, str) or not _IDENT_RE.fullmatch(value):
+        raise ValueError(f"Invalid {name}")
+    return value
+
+
+def _date(value: str, name: str = "date") -> str:
+    if not isinstance(value, str) or not _DATE_RE.fullmatch(value):
+        raise ValueError(f"Invalid {name}")
+    return value
+
+
+def _eq(value: str, name: str = "value") -> str:
+    return f"eq.{_ident(value, name)}"
+
+
+def _table(name: str) -> str:
+    if name not in _TABLES:
+        raise ValueError(f"Unknown table {name!r}")
+    return name
+
+
+def _validate_supabase_url(url: str) -> str:
+    parsed = urlparse(url)
+    host = (parsed.hostname or "").lower()
+    if parsed.scheme == "https" and host.endswith(".supabase.co"):
+        return url.rstrip("/")
+    if parsed.scheme in ("http", "https") and host in _LOCAL_HOSTS:
+        return url.rstrip("/")
+    raise RuntimeError(
+        "SUPABASE_URL must be https://<project>.supabase.co "
+        "(or http(s)://localhost for local dev)."
+    )
 
 
 def _with_retry(fn, *args, retries=3, base_delay=20, **kwargs):
@@ -40,7 +83,7 @@ def _env() -> tuple[str, str]:
         raise RuntimeError(
             "SUPABASE_URL and SUPABASE_SERVICE_KEY must be set (in .env or the environment)."
         )
-    return url.rstrip("/"), key
+    return _validate_supabase_url(url), key
 
 
 def _headers(key: str, prefer: str | None = None) -> dict:
@@ -59,7 +102,7 @@ def _upsert(table: str, rows: list[dict], on_conflict: str) -> list[dict]:
         return []
     url, key = _env()
     resp = requests.post(
-        f"{url}/rest/v1/{table}?on_conflict={on_conflict}",
+        f"{url}/rest/v1/{_table(table)}?on_conflict={on_conflict}",
         headers=_headers(key, prefer="resolution=merge-duplicates,return=representation"),
         json=rows,
         timeout=30,
@@ -71,7 +114,7 @@ def _upsert(table: str, rows: list[dict], on_conflict: str) -> list[dict]:
 def _insert(table: str, row: dict) -> dict:
     url, key = _env()
     resp = requests.post(
-        f"{url}/rest/v1/{table}",
+        f"{url}/rest/v1/{_table(table)}",
         headers=_headers(key, prefer="return=representation"),
         json=row,
         timeout=30,
@@ -84,7 +127,7 @@ def _insert(table: str, row: dict) -> dict:
 def _select(table: str, params: dict) -> list[dict]:
     url, key = _env()
     resp = requests.get(
-        f"{url}/rest/v1/{table}",
+        f"{url}/rest/v1/{_table(table)}",
         headers=_headers(key),
         params=params,
         timeout=30,
@@ -245,6 +288,7 @@ def _date_range(days: int) -> list[str]:
 
 def sync_facts(user: str, days: int = 7) -> list[dict]:
     """Fetch recent Garmin data and flatten it into fact rows. No AI, no writes."""
+    user = _ident(user, "user")
     garmin = get_garmin_client(user)
     dates = _date_range(days)
     start, end = dates[-1], dates[0]
@@ -297,7 +341,7 @@ def push_facts(rows: list[dict]) -> int:
 def last_synced_date(user: str) -> str | None:
     """Most recent fact_date synced for this user, or None if never synced."""
     rows = _select("garmin_facts", {
-        "user_name": f"eq.{user}",
+        "user_name": _eq(user, "user"),
         "order": "fact_date.desc",
         "limit": "1",
         "select": "fact_date",
@@ -307,12 +351,12 @@ def last_synced_date(user: str) -> str | None:
 
 def read_facts(user: str, start: str, end: str, source: str | None = None) -> list[dict]:
     params = {
-        "user_name": f"eq.{user}",
-        "fact_date": [f"gte.{start}", f"lte.{end}"],
+        "user_name": _eq(user, "user"),
+        "fact_date": [f"gte.{_date(start, 'start')}", f"lte.{_date(end, 'end')}"],
         "order": "fact_date.asc,source.asc,metric_key.asc",
     }
     if source:
-        params["source"] = f"eq.{source}"
+        params["source"] = _eq(source, "source")
     return _select("garmin_facts", params)
 
 
@@ -329,10 +373,10 @@ def push_coaching_note(
     generated_by: str = "claude-interactive",
 ) -> dict:
     row = {
-        "user_name": user,
-        "note_date": note_date,
-        "period_start": period_start,
-        "period_end": period_end,
+        "user_name": _ident(user, "user"),
+        "note_date": _date(note_date, "note_date"),
+        "period_start": _date(period_start, "period_start") if period_start else None,
+        "period_end": _date(period_end, "period_end") if period_end else None,
         "title": title,
         "body": body,
         "tags": tags,
@@ -344,8 +388,8 @@ def push_coaching_note(
 
 def read_coaching_notes(user: str, start: str, end: str) -> list[dict]:
     params = {
-        "user_name": f"eq.{user}",
-        "note_date": [f"gte.{start}", f"lte.{end}"],
+        "user_name": _eq(user, "user"),
+        "note_date": [f"gte.{_date(start, 'start')}", f"lte.{_date(end, 'end')}"],
         "order": "note_date.asc",
     }
     return _select("coaching_notes", params)

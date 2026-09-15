@@ -10,6 +10,7 @@ Usage:
 import http.server
 import json
 import os
+import secrets
 import socket
 import sys
 import threading
@@ -31,6 +32,8 @@ _state = {
 }
 _shutdown_event = threading.Event()
 _user: str = "omer"
+_csrf: str = ""
+_MAX_POST_BYTES = 64 * 1024
 
 
 # ─── HTML pages ───────────────────────────────────────────────────────────────
@@ -84,6 +87,10 @@ button:active { background: #148f3e; }
 .success h2 { font-size: 20px; margin-bottom: 8px; }
 """
 
+def _csrf_field() -> str:
+    return f'<input type="hidden" name="csrf" value="{escape(_csrf)}">'
+
+
 def _page(body: str, extra_head: str = "") -> bytes:
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -128,6 +135,7 @@ def _login_page(error: str = None, prefill_email: str = "") -> bytes:
       {email_field}
       {err_html}
       <form method="POST" action="/login">
+        {_csrf_field()}
         {email_input}
         <div class="field">
           <label>Password</label>
@@ -147,6 +155,7 @@ def _otp_page(error: str = None) -> bytes:
       </div>
       {err_html}
       <form method="POST" action="/otp">
+        {_csrf_field()}
         <div class="field">
           <label>One-Time Code</label>
           <input type="text" name="otp" autofocus placeholder="6-digit code"
@@ -178,24 +187,48 @@ class _Handler(http.server.BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         pass  # suppress request logs
 
+    def _is_local_host(self) -> bool:
+        host = (self.headers.get("Host") or "").split("%")[0]
+        hostname = host.rsplit(":", 1)[0].strip("[]").lower()
+        return hostname in {"127.0.0.1", "localhost", "::1"}
+
     def _send(self, body: bytes, status: int = 200):
         self.send_response(status)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Referrer-Policy", "no-referrer")
         self.end_headers()
         self.wfile.write(body)
 
     def _redirect(self, path: str):
         self.send_response(302)
         self.send_header("Location", path)
+        self.send_header("Cache-Control", "no-store")
         self.end_headers()
 
-    def _parse_post(self) -> dict:
-        length = int(self.headers.get("Content-Length", 0))
+    def _parse_post(self) -> dict | None:
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+        except ValueError:
+            self._send(b"Bad request", 400)
+            return None
+        if length < 0 or length > _MAX_POST_BYTES:
+            self._send(b"Payload too large", 413)
+            return None
         raw = self.rfile.read(length).decode()
         return {k: v[0] for k, v in urllib.parse.parse_qs(raw).items()}
 
+    def _valid_csrf(self, data: dict) -> bool:
+        got = data.get("csrf", "")
+        return bool(_csrf) and secrets.compare_digest(got, _csrf)
+
     def do_GET(self):
+        if not self._is_local_host():
+            self._send(b"Forbidden", 403)
+            return
         path = urllib.parse.urlparse(self.path).path
         if path in ("/", "/login"):
             self._send(_login_page())
@@ -211,10 +244,18 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._send(b"Not found", 404)
 
     def do_POST(self):
+        if not self._is_local_host():
+            self._send(b"Forbidden", 403)
+            return
         path = urllib.parse.urlparse(self.path).path
+        data = self._parse_post()
+        if data is None:
+            return
+        if not self._valid_csrf(data):
+            self._send(_login_page(error="Session expired. Reload the page and try again."), 403)
+            return
 
         if path == "/login":
-            data = self._parse_post()
             password = data.get("password", "")
             cfg = USERS.get(_user)
             email = cfg["email"] if cfg else data.get("email", "").strip()
@@ -247,13 +288,14 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                     msg = "Garmin is rate-limiting login attempts. Wait 5–10 minutes and try again."
                 elif "invalid" in msg.lower() or "incorrect" in msg.lower() or "401" in msg:
                     msg = "Incorrect email or password. Please try again."
+                else:
+                    msg = "Login failed. Please try again."
                 self._send(_login_page(error=msg, prefill_email=email))
 
         elif path == "/otp":
             if _state["status"] != "awaiting_mfa":
                 self._redirect("/login")
                 return
-            data = self._parse_post()
             otp = data.get("otp", "").strip()
             try:
                 g = _state["garmin"]
@@ -264,6 +306,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 msg = str(e)
                 if "invalid" in msg.lower() or "incorrect" in msg.lower():
                     msg = "Invalid code. Please try again."
+                else:
+                    msg = "Verification failed. Please try again."
                 self._send(_otp_page(error=msg))
 
         else:
@@ -290,8 +334,15 @@ def _finalise(g: Garmin):
 
 def run(user: str = "omer", timeout: int = 300):
     """Start the login server, open browser, block until done or timeout."""
-    global _user, _shutdown_event
+    global _user, _shutdown_event, _csrf
     _user = user
+    _csrf = secrets.token_urlsafe(32)
+    _state.update({
+        "status": "pending",
+        "error": None,
+        "garmin": None,
+        "client_state": None,
+    })
     _shutdown_event = threading.Event()  # reset for re-use
 
     # Pick a free port

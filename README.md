@@ -118,7 +118,7 @@ MFA supported. If your account uses two-factor authentication, you'll be prompte
 > "I slept 5 hours last night. Should I still do my intervals?"
 
 ### Multi-user (coaches)
-> "Check Rami's last week — he's 68 and training for a 10K. How did he do?"
+> "Check Rami's last week of training for a 10K. How did he do?"
 
 > "Pull Yuval's stats and compare this week's volume to last week."
 
@@ -130,7 +130,7 @@ MFA supported. If your account uses two-factor authentication, you'll be prompte
 |---|---|
 | omer | Default user |
 | yuval | Secondary athlete |
-| rami | Age 68, coached runner, trains at Givat Ram |
+| rami | Coached athlete |
 
 To add a new user: add them to `users.json`, run `poetry run pacerai login --user <name>`.
 
@@ -249,18 +249,18 @@ Persist Garmin data and coaching interpretations to Supabase so sessions have me
 - **Facts** (`sync-facts` / `read-facts`) — deterministic, no AI. Flattens activities, sleep, HRV, stats, body battery, and training status into sparse rows (`user, date, source, metric_key, value`) in the `garmin_facts` table. Safe to run unattended (e.g. a future scheduled job).
 - **Coaching notes** (`push-coaching-note` / `read-coaching-notes`) — AI-authored interpretations/recommendations, stored in `coaching_notes`. Claude reads facts, writes the interpretation itself, then calls `push-coaching-note` to persist it — the CLI does no AI work.
 
-**One-time setup:** paste `supabase/schema.sql` into your Supabase project's SQL editor, then add `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` to your `.env` (see `.env.example`).
+**One-time setup:** paste `supabase/schema.sql` into your Supabase project's SQL editor (this **enables RLS** so sleep/HRV/weight data is not world-readable via the anon key), then add `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` to your `.env` (see `.env.example`). If the tables already exist, run `supabase/rls_lockdown.sql` instead.
 
 **Optional — Telegram notification on every new note:** `push-coaching-note` sends a Telegram message whenever `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` are set in `.env`. Create a bot via [@BotFather](https://t.me/BotFather) (`/newbot`), message it once, then visit `https://api.telegram.org/bot<TOKEN>/getUpdates` to find your chat id. Leave unset to disable — it never blocks the note from saving either way.
 
-### Daily export on GitHub Actions (token secret)
+### Daily sync on GitHub Actions (token secret)
 
-Uses the existing env-var auth path (`GARMIN_TOKEN_OMER`) so the job never opens a browser or Keychain.
+Uses the existing env-var auth path (`GARMIN_TOKEN_OMER`) so the job never opens a browser or Keychain. Health data is written **only to Supabase** — it is never uploaded as a GitHub Actions artifact (this is a public repository).
 
 1. On your Mac: `poetry run pacerai --user omer export-token`
 2. Copy `token_blob` into a **repository secret** named `GARMIN_TOKEN_OMER`  
    (Settings → Secrets and variables → Actions)
-3. Optional: also set `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` to run `sync-facts`
+3. Also set `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` (required — the job will fail closed without them)
 4. Workflow: `.github/workflows/daily-export.yml` — 07:00 Israel time, plus manual **Run workflow**
 
 This can still fail if Garmin rate-limits GitHub-hosted IPs. If that happens, keep using the local launchd sync below.
