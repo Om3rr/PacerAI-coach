@@ -8,6 +8,7 @@ Run with: poetry run pacerai <command> [options]
 
 import argparse
 import json
+import re
 import sys
 from datetime import date, datetime
 from pathlib import Path
@@ -24,11 +25,24 @@ if _EXERCISES_FILE.exists():
 
 # ─── Output helpers ────────────────────────────────────────────────────────────
 
+_TELEGRAM_BOT_URL = re.compile(r"https://api\.telegram\.org/bot[^/\s]+")
+_JWT_LIKE = re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9._-]+\b")
+_BEARER = re.compile(r"(?i)(authorization:\s*bearer\s+)\S+")
+
+
+def _redact_secrets(msg: str) -> str:
+    """Strip credentials that libraries leak in exception URLs/headers."""
+    msg = _TELEGRAM_BOT_URL.sub("https://api.telegram.org/bot<redacted>", msg)
+    msg = _JWT_LIKE.sub("<redacted-jwt>", msg)
+    msg = _BEARER.sub(r"\1<redacted>", msg)
+    return msg
+
+
 def ok(data):
     print(json.dumps({"status": "ok", "data": data}, indent=2, default=str))
 
 def err(msg, code=1):
-    print(json.dumps({"status": "error", "message": msg}, indent=2))
+    print(json.dumps({"status": "error", "message": _redact_secrets(str(msg))}, indent=2))
     sys.exit(code)
 
 def today() -> str:
@@ -622,7 +636,7 @@ def cmd_push_coaching_note(args):
         )
     except Exception as e:
         result["telegram_notified"] = False
-        result["telegram_error"] = str(e)
+        result["telegram_error"] = _redact_secrets(f"{type(e).__name__}: {e}")
     ok(result)
 
 

@@ -24,7 +24,7 @@ echo "$LOG_PREFIX starting for user=$USER_NAME"
 
 json_field() {
     # reads pacerai's {"status":"ok","data":{...}} from stdin, prints data[$1]
-    python3 -c "import json,sys; d=json.load(sys.stdin)['data']; print(d.get('$1'))"
+    python3 -c 'import json,sys; d=json.load(sys.stdin)["data"]; print(d.get(sys.argv[1]))' "$1"
 }
 
 LAST_SYNCED=$(poetry run pacerai --user "$USER_NAME" last-synced | json_field last_fact_date)
@@ -38,12 +38,13 @@ fi
 if [ "$LAST_SYNCED" = "None" ]; then
     DAYS=14
 else
-    GAP=$(python3 -c "
+    GAP=$(LAST_SYNCED="$LAST_SYNCED" TODAY="$TODAY" python3 -c '
 from datetime import date
-last = date.fromisoformat('$LAST_SYNCED')
-today = date.fromisoformat('$TODAY')
+import os
+last = date.fromisoformat(os.environ["LAST_SYNCED"])
+today = date.fromisoformat(os.environ["TODAY"])
 print(max(1, min((today - last).days, 14)))
-")
+')
     DAYS=$GAP
 fi
 
@@ -51,7 +52,11 @@ echo "$LOG_PREFIX syncing facts, days=$DAYS"
 poetry run pacerai --user "$USER_NAME" sync-facts --days "$DAYS"
 
 echo "$LOG_PREFIX invoking headless Claude for coaching notes"
-claude -p "$(sed "s/{{USER}}/$USER_NAME/g" "$SCRIPT_DIR/daily_coaching_prompt.md")" \
+PROMPT=$(USER_NAME="$USER_NAME" python3 -c '
+import os, pathlib, sys
+print(pathlib.Path(sys.argv[1]).read_text().replace("{{USER}}", os.environ["USER_NAME"]))
+' "$SCRIPT_DIR/daily_coaching_prompt.md")
+claude -p "$PROMPT" \
     --allowedTools "Bash(poetry run pacerai *)" \
     || echo "$LOG_PREFIX headless Claude run failed or produced nothing — facts are still synced."
 

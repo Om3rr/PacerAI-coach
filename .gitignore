@@ -1,13 +1,21 @@
 # Secrets & personal config
 .env
+.env.*
+!.env.example
 users.json
 .garminconnect*/
 
 # Athlete coaching data (personal health information)
 .coaching_plans/
+export/
 
 # Local daily-sync logs (machine-specific)
 scripts/*.log
+
+# Tokens / keys that must never be committed
+*.pem
+*.key
+token_blob*
 
 # Python
 __pycache__/

@@ -6,9 +6,13 @@ on:
     - cron: "0 4 * * *"
   workflow_dispatch:
 
+# Public repo: never grant the default write token.
+permissions:
+  contents: read
+
 jobs:
   export:
-    name: Export Omer's Garmin data
+    name: Sync Garmin facts to Supabase
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -31,45 +35,23 @@ jobs:
       - name: Install Poetry
         uses: snok/install-poetry@v1
         with:
-          version: latest
           virtualenvs-create: true
           virtualenvs-in-project: true
 
       - name: Install package
         run: poetry install --only main
 
-      - name: Export today's snapshot
+      # Health data (sleep, HRV, weight, activities) is written only to Supabase.
+      # Never dump it to workflow logs or GitHub Actions artifacts on a public repo.
+      - name: Sync facts to Supabase
         env:
           GARMIN_TOKEN_OMER: ${{ secrets.GARMIN_TOKEN_OMER }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: |
           set -euo pipefail
-          mkdir -p export
-          poetry run pacerai --user omer activities --limit 10 > export/activities.json
-          poetry run pacerai --user omer sleep > export/sleep.json
-          poetry run pacerai --user omer stats > export/stats.json
-          poetry run pacerai --user omer hrv > export/hrv.json
-          poetry run pacerai --user omer training-status > export/training-status.json || true
-          if [ -n "${SUPABASE_URL:-}" ] && [ -n "${SUPABASE_SERVICE_KEY:-}" ]; then
-            poetry run pacerai --user omer sync-facts --days 3 > export/sync-facts.json || true
+          if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_SERVICE_KEY:-}" ]; then
+            echo "::error::Set repo secrets SUPABASE_URL and SUPABASE_SERVICE_KEY. Raw Garmin JSON is not stored on GitHub."
+            exit 1
           fi
-          python3 - <<'PY'
-          import json, pathlib
-          out = pathlib.Path("export")
-          summary = {}
-          for p in sorted(out.glob("*.json")):
-              try:
-                  summary[p.stem] = json.loads(p.read_text()).get("status")
-              except Exception as e:
-                  summary[p.stem] = f"parse-error: {e}"
-          print(json.dumps({"export_statuses": summary}, indent=2))
-          PY
-
-      - name: Upload export artifact
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: pacerai-omer-${{ github.run_id }}
-          path: export/
-          retention-days: 14
+          poetry run pacerai --user omer sync-facts --days 3

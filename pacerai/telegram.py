@@ -15,18 +15,28 @@ load_dotenv()
 _MAX_LEN = 4096  # Telegram's message length limit
 
 
+class TelegramError(RuntimeError):
+    """HTTP failure talking to Telegram, with the bot token stripped."""
+
+
 def send_message(text: str) -> bool:
     """Send a Telegram message. Returns False (no-op) if not configured."""
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
     chat_id = os.environ.get("TELEGRAM_CHAT_ID")
     if not token or not chat_id:
         return False
-    resp = requests.post(
-        f"https://api.telegram.org/bot{token}/sendMessage",
-        json={"chat_id": chat_id, "text": text[:_MAX_LEN]},
-        timeout=10,
-    )
-    resp.raise_for_status()
+    try:
+        resp = requests.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={"chat_id": chat_id, "text": text[:_MAX_LEN]},
+            timeout=10,
+        )
+        resp.raise_for_status()
+    except requests.HTTPError as e:
+        status = e.response.status_code if e.response is not None else "unknown"
+        raise TelegramError(f"Telegram API error ({status})") from None
+    except requests.RequestException as e:
+        raise TelegramError(f"Telegram request failed ({type(e).__name__})") from None
     return True
 
 
